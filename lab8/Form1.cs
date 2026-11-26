@@ -7,21 +7,39 @@ namespace lab8
         private readonly Button btnStart = new Button();
         private readonly ListBox listBox = new ListBox();
 
-        // Колекція машин.
-        private readonly List<Car> cars = new List<Car>
-        {
-            new Car { Brand = "BMW",    Model = "X5",      Year = 2018, Plate = "AA1111BB" },
-            new Car { Brand = "Audi",   Model = "A6",      Year = 2015, Plate = "BC2222CD" },
-            new Car { Brand = "BMW",    Model = "320i",    Year = 2020, Plate = "KA3333KA" },
-            new Car { Brand = "Toyota", Model = "Camry",   Year = 2012, Plate = "AX4444XA" },
-            new Car { Brand = "BMW",    Model = "M5",      Year = 2022, Plate = "AO5555OA" },
-            new Car { Brand = "Skoda",  Model = "Octavia", Year = 2019, Plate = "BH6666HB" }
-        };
+        // Колекція машин, заповнюється випадково.
+        private readonly List<Car> cars = GenerateCars(30);
 
         public Form1()
         {
             InitializeComponent();
             SetupInterface();
+        }
+
+        // Створює count машин з випадковою маркою, роком і номером.
+        private static List<Car> GenerateCars(int count)
+        {
+            string[] brands = { "BMW", "Audi", "Toyota", "Skoda" };
+            string[] models = { "X5", "A6", "Camry", "Octavia" }; // модель для кожної марки
+            string letters = "ABCEHIKMOPTX";
+            Random random = new Random();
+            List<Car> result = new List<Car>();
+
+            for (int i = 0; i < count; i++)
+            {
+                int b = random.Next(brands.Length);
+                result.Add(new Car
+                {
+                    Brand = brands[b],
+                    Model = models[b],
+                    Year = random.Next(2000, 2026),
+                    Plate = $"{letters[random.Next(letters.Length)]}{letters[random.Next(letters.Length)]}"
+                          + $"{random.Next(1000, 10000)}"
+                          + $"{letters[random.Next(letters.Length)]}{letters[random.Next(letters.Length)]}"
+                });
+            }
+
+            return result;
         }
 
         private void SetupInterface()
@@ -46,7 +64,6 @@ namespace lab8
             btnStart.Enabled = false;
             listBox.Items.Clear();
 
-            // PLINQ-запит: тільки машини марки BMW.
             listBox.Items.Add("PLINQ: машини марки BMW");
             var bmw = cars.AsParallel().Where(c => c.Brand == "BMW").ToList();
             foreach (Car c in bmw)
@@ -54,19 +71,16 @@ namespace lab8
                 listBox.Items.Add("  " + c);
             }
 
-            // Виробник / споживач у фоні, щоб форма не "зависала".
             listBox.Items.Add("Виробник / споживач:");
             await Task.Run(() => ProducerConsumer());
 
             btnStart.Enabled = true;
         }
 
-        // Один виробник і один споживач діляться ConcurrentBag.
         private void ProducerConsumer()
         {
             ConcurrentBag<Car> bag = new ConcurrentBag<Car>();
 
-            // Виробник сигналізує споживачу, що в колекції з'явився елемент.
             AutoResetEvent dataReady = new AutoResetEvent(false);
 
             Thread producer = new Thread(() =>
@@ -76,7 +90,7 @@ namespace lab8
                     bag.Add(car);
                     Log("Виробник додав: " + car);
                     dataReady.Set(); // повідомляємо споживача
-                    Thread.Sleep(300);
+                    Thread.Sleep(100);
                 }
             });
 
